@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WordPress Custom Block Architecture — Hard Rules</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #16191f;
+      --surface-2: #1c2028;
+      --border: #272c35;
+      --border-subtle: #1e2229;
+      --text: #e2e6ed;
+      --text-muted: #7a8394;
+      --text-faint: #404857;
+      --accent: #4f8ef7;
+      --accent-dim: rgba(79, 142, 247, 0.12);
+      --accent-glow: rgba(79, 142, 247, 0.06);
+      --green: #3ecf8e;
+      --green-dim: rgba(62, 207, 142, 0.1);
+      --tag-bg: #1e2430;
+      --tag-text: #7eb8f7;
+      --rule-num: #2e3441;
+      --sidebar-w: 260px;
+      --font: 'Inter', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar nav ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 32px 0 48px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-logo {
+      padding: 0 24px 28px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .sidebar-logo span {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .sidebar-logo strong {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    .nav-section {
+      padding: 0 12px;
+    }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      padding: 0 12px;
+      margin-bottom: 6px;
+      margin-top: 20px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+      line-height: 1.3;
+    }
+
+    .nav-link:hover { background: var(--surface-2); color: var(--text); }
+    .nav-link.active { background: var(--accent-dim); color: var(--accent); }
+
+    .nav-num {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-faint);
+      min-width: 16px;
+      font-family: var(--mono);
+    }
+
+    /* ── Main content ── */
+    .main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      max-width: 860px;
+      padding: 64px 64px 120px;
+    }
+
+    /* ── Header ── */
+    .doc-header {
+      margin-bottom: 56px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .doc-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .doc-eyebrow::before {
+      content: '';
+      display: block;
+      width: 20px;
+      height: 1px;
+      background: var(--accent);
+    }
+
+    h1 {
+      font-size: 30px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #fff;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .doc-lead {
+      font-size: 16px;
+      color: var(--text-muted);
+      line-height: 1.7;
+      max-width: 600px;
+    }
+
+    /* ── Sections ── */
+    .section {
+      margin-bottom: 64px;
+      scroll-margin-top: 32px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .section-num {
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--mono);
+      color: var(--text-faint);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: -0.015em;
+      line-height: 1.3;
+    }
+
+    /* ── Rules ── */
+    .rule {
+      margin-bottom: 28px;
+      padding: 20px 22px;
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      transition: border-color 0.15s;
+    }
+
+    .rule:hover { border-color: var(--border); }
+
+    .rule:last-child { margin-bottom: 0; }
+
+    .rule-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .rule-id {
+      font-size: 10px;
+      font-weight: 600;
+      font-family: var(--mono);
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 2px 7px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    .rule p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    .rule p + p { margin-top: 10px; }
+
+    /* ── Inline code ── */
+    code {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    /* ── Code blocks ── */
+    pre {
+      background: #0a0c10;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 22px;
+      overflow-x: auto;
+      margin-top: 14px;
+      position: relative;
+    }
+
+    pre code {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      background: none;
+      color: #abb2bf;
+      padding: 0;
+      border-radius: 0;
+      font-weight: 400;
+      line-height: 1.7;
+    }
+
+    /* Simple syntax coloring */
+    .kw { color: #c678dd; }
+    .fn { color: #61afef; }
+    .st { color: #98c379; }
+    .cm { color: #5c6370; font-style: italic; }
+    .nm { color: #d19a66; }
+    .op { color: #56b6c2; }
+
+    /* ── Table ── */
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+
+    thead {
+      background: var(--surface-2);
+    }
+
+    th {
+      text-align: left;
+      padding: 11px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 12px 16px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-subtle);
+      vertical-align: top;
+    }
+
+    td:first-child { color: var(--text); font-weight: 500; }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface-2); }
+
+    /* ── Lists ── */
+    ul, ol {
+      padding-left: 20px;
+      margin-top: 10px;
+    }
+
+    li {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 4px;
+    }
+
+    li strong { color: var(--text); }
+
+    /* ── Decision tree ── */
+    .decision-tree {
+      counter-reset: tree-item;
+      list-style: none;
+      padding: 0;
+      margin-top: 14px;
+    }
+
+    .decision-tree > li {
+      counter-increment: tree-item;
+      display: flex;
+      gap: 14px;
+      margin-bottom: 14px;
+      padding: 14px 16px;
+      background: var(--surface-2);
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .decision-tree > li::before {
+      content: counter(tree-item);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--mono);
+      border-radius: 50%;
+      margin-top: 2px;
+    }
+
+    .decision-tree > li .content { flex: 1; }
+
+    .decision-tree ul {
+      margin-top: 8px;
+      padding-left: 16px;
+    }
+
+    .decision-tree ul li {
+      color: var(--text-muted);
+      font-size: 13.5px;
+      margin-bottom: 3px;
+    }
+
+    /* ── No list ── */
+    .no-list {
+      list-style: none;
+      padding: 0;
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .no-list li {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 12px 14px;
+      background: rgba(239, 68, 68, 0.05);
+      border: 1px solid rgba(239, 68, 68, 0.12);
+      border-radius: 7px;
+    }
+
+    .no-list li::before {
+      content: '✕';
+      color: #ef4444;
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 3px;
+      flex-shrink: 0;
+    }
+
+    /* ── File tree ── */
+    .file-tree {
+      background: #0a0c10;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 22px;
+      margin-top: 14px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 2;
+      color: #abb2bf;
+    }
+
+    .file-tree .dir  { color: #61afef; }
+    .file-tree .file { color: #abb2bf; }
+    .file-tree .comment { color: #5c6370; }
+
+    /* ── Default padding callout ── */
+    .spacing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .spacing-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .spacing-val {
+      font-size: 24px;
+      font-weight: 600;
+      font-family: var(--mono);
+      color: var(--green);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .spacing-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-faint);
+    }
+
+    /* ── Divider ── */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 48px 0;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 40px 24px 80px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <span>Starling Digital</span>
+    <strong>Block Architecture Rules</strong>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Sections</div>
+    <a class="nav-link" href="#s1"><span class="nav-num">01</span> Block Technology Standard</a>
+    <a class="nav-link" href="#s2"><span class="nav-num">02</span> Canvas &amp; Editing Philosophy</a>
+    <a class="nav-link" href="#s3"><span class="nav-num">03</span> Sidebar Organization</a>
+    <a class="nav-link" href="#s4"><span class="nav-num">04</span> ACF Field Type Rules</a>
+    <a class="nav-link" href="#s5"><span class="nav-num">05</span> Variants &amp; Variations</a>
+    <a class="nav-link" href="#s6"><span class="nav-num">06</span> Spacing &amp; Padding</a>
+    <a class="nav-link" href="#s7"><span class="nav-num">07</span> Design Token Integration</a>
+    <a class="nav-link" href="#s8"><span class="nav-num">08</span> PHP Template Rules</a>
+    <a class="nav-link" href="#s9"><span class="nav-num">09</span> File Structure</a>
+    <a class="nav-link" href="#s10"><span class="nav-num">10</span> Naming Conventions</a>
+    <a class="nav-link" href="#s11"><span class="nav-num">11</span> What Never Goes in a Block</a>
+    <a class="nav-link" href="#s12"><span class="nav-num">12</span> Decision Tree</a>
+  </div>
+</nav>
+
+<!-- Main -->
+<main class="main">
+
+  <header class="doc-header">
+    <div class="doc-eyebrow">Hard Rules</div>
+    <h1>WordPress Custom Block Architecture</h1>
+    <p class="doc-lead">This document defines how all custom WordPress blocks are built, organized, edited, and maintained across all projects. These rules are not guidelines, they are the standard. Deviations require explicit justification and sign-off.</p>
+  </header>
+
+  <!-- Section 1 -->
+  <section class="section" id="s1">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2>Block Technology Standard</h2>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">1.1</span><h3>ACF Blocks Are the Default</h3></div>
+      <p>All custom structured blocks are built as ACF blocks using ACF Pro's block registration API. Native Gutenberg block registration is not used for custom blocks unless there is a specific technical requirement that ACF blocks cannot satisfy.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">1.2</span><h3>Scope of ACF Blocks</h3></div>
+      <p>ACF blocks are used for all structured block types regardless of whether the data lives outside the block or not. A block does not need to be tied to a CPT, taxonomy, or queryable dataset to justify being an ACF block. Simple one-instance page-level blocks (hero, CTA band, stats bar, testimonial, etc.) are ACF blocks. The decision to use ACF is about the editing architecture, not the data architecture.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">1.3</span><h3>ACF Blocks for CPT-Driven Blocks</h3></div>
+      <p>Any block that queries or displays data from a Custom Post Type, taxonomy, or external data source is always an ACF block. No exceptions.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">1.4</span><h3>GenerateBlocks Is a Utility Plugin, Not a Block-Building Tool</h3></div>
+      <p>GenerateBlocks is installed and available for one-off layout needs that fall outside the structured block library (e.g., a developer-assembled promo section for a single page). It is never used as a substitute for building a proper ACF block. If a layout pattern appears more than once or originates from a Figma design, it becomes an ACF block.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">1.5</span><h3>Core Blocks for Free-Form Content</h3></div>
+      <p>WordPress core blocks (Paragraph, Heading, List, Image, Quote, etc.) are used for long-form editorial content areas — blog posts, resource pages, documentation — where editors need genuine free-form composition. They are not used to assemble structured design components.</p>
+    </div>
+  </section>
+
+  <!-- Section 2 -->
+  <section class="section" id="s2">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2>Canvas and Editing Philosophy</h2>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">2.1</span><h3>The Canvas Is Always a Preview</h3></div>
+      <p>The editor canvas is a pixel-accurate preview of the rendered block. It is never an editing surface. Editors do not click into the canvas to type, change images, or modify any content. All editing happens in the sidebar.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">2.2</span><h3>No Inline Canvas Editing</h3></div>
+      <p><code>RichText</code> components, inline toolbar controls, and any other form of on-canvas interaction are not used in custom blocks. The canvas renders a static PHP template via ACF's <code>mode: 'preview'</code> setting.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">2.3</span><h3>All Fields Live in the Sidebar</h3></div>
+      <p>Every editable element of a block — text, media, toggles, layout settings, style overrides — is a field in the sidebar Inspector panel. Editors have one place to look. Always.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">2.4</span><h3>ACF Block Mode</h3></div>
+      <p>All ACF blocks are registered with <code>'mode' => 'preview'</code>. Blocks never use <code>'mode' => 'edit'</code> (which surfaces ACF fields overlaid on the canvas) or <code>'mode' => 'auto'</code>.</p>
+      <pre><code><span class="fn">acf_register_block_type</span>(<span class="kw">array</span>(
+    <span class="st">'name'</span>            =&gt; <span class="st">'hero'</span>,
+    <span class="st">'title'</span>           =&gt; <span class="st">'Hero'</span>,
+    <span class="st">'render_template'</span> =&gt; <span class="st">'blocks/hero/hero.php'</span>,
+    <span class="st">'mode'</span>            =&gt; <span class="st">'preview'</span>,
+    <span class="st">'supports'</span>        =&gt; <span class="kw">array</span>( ... ),
+));</code></pre>
+    </div>
+  </section>
+
+  <!-- Section 3 -->
+  <section class="section" id="s3">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2>Sidebar Organization — The Three-Tab Structure</h2>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">3.1</span><h3>All Block Sidebars Use Three Tabs</h3></div>
+      <p>Every ACF block's field group is organized into exactly three ACF Tab fields:</p>
+      <ul style="margin-top:12px;">
+        <li><strong>Content</strong> — all text fields, media fields, CTA fields, repeaters. Everything an editor touches on every use.</li>
+        <li><strong>Style</strong> — color overrides, typography overrides, spacing overrides. These deviate from the design system default and are escape hatches, not primary controls.</li>
+        <li><strong>Advanced</strong> — layout mode, responsive behavior toggles, custom CSS class, anchor/ID, any developer-facing settings.</li>
+      </ul>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">3.2</span><h3>Content Tab Comes First</h3></div>
+      <p>The Content tab is always the first tab in the field group. Editors land there by default.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">3.3</span><h3>Style Tab Is for Overrides Only</h3></div>
+      <p>The block's default appearance should be correct with zero Style fields set. Style controls exist to handle intentional, approved deviations from the design system on a per-instance basis. If a style setting is always required to make the block look right, it belongs in CSS, not in a Style field.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">3.4</span><h3>Advanced Tab Is Low-Traffic</h3></div>
+      <p>Settings in the Advanced tab are configured once at build time or rarely touched by editors. If a developer finds themselves putting things in the Advanced tab that editors will adjust frequently, those fields should be reconsidered for the Content or Style tab.</p>
+    </div>
+  </section>
+
+  <!-- Section 4 -->
+  <section class="section" id="s4">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2>ACF Field Type Rules</h2>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">4.1</span><h3>Short Text with No Formatting</h3></div>
+      <p>Use the <code>Text</code> field type for: eyebrow labels, button labels, phone numbers, addresses, short single-line data. No formatting controls are available and none are needed.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">4.2</span><h3>Text That May Need Inline Formatting</h3></div>
+      <p>Use the <code>WYSIWYG</code> field type for: headings (a single word may need to be bolded or italicized), subheadings, intro copy, any field where an editor might need to highlight a word, add an inline link, or apply basic emphasis.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">4.3</span><h3>WYSIWYG Fields Use a Minimal Toolbar</h3></div>
+      <p>All WYSIWYG fields use a custom minimal toolbar unless a specific field explicitly requires more. The minimal toolbar contains only: Bold, Italic, Link, Remove Formatting. Media upload is disabled on all WYSIWYG fields unless explicitly required.</p>
+      <pre><code><span class="cm">// Register the minimal toolbar globally</span>
+<span class="fn">add_filter</span>(<span class="st">'acf/fields/wysiwyg/toolbars'</span>, <span class="kw">function</span>(<span class="nm">$toolbars</span>) {
+    <span class="nm">$toolbars</span>[<span class="st">'Minimal'</span>] = <span class="kw">array</span>();
+    <span class="nm">$toolbars</span>[<span class="st">'Minimal'</span>][<span class="nm">1</span>] = <span class="kw">array</span>(<span class="st">'bold'</span>, <span class="st">'italic'</span>, <span class="st">'link'</span>, <span class="st">'removeformat'</span>);
+    <span class="kw">return</span> <span class="nm">$toolbars</span>;
+});
+
+<span class="cm">// Apply to any WYSIWYG field that needs it</span>
+<span class="kw">array</span>(
+    <span class="st">'type'</span>         =&gt; <span class="st">'wysiwyg'</span>,
+    <span class="st">'toolbar'</span>      =&gt; <span class="st">'Minimal'</span>,
+    <span class="st">'media_upload'</span> =&gt; <span class="nm">0</span>,
+)</code></pre>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">4.4</span><h3>Long Body Copy</h3></div>
+      <p>Use <code>WYSIWYG</code> with the <code>basic</code> toolbar for multi-paragraph body copy where editors may need ordered/unordered lists in addition to bold, italic, and links.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">4.5</span><h3>Media Fields</h3></div>
+      <p>Use ACF's <code>Image</code> field type for images (returns image array, ID, or URL per field setting). Use <code>URL</code> or <code>Text</code> for video embed URLs. Never use the WordPress media uploader outside of ACF's native image/file field types in custom blocks.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">4.6</span><h3>Repeater Fields</h3></div>
+      <p>Use ACF <code>Repeater</code> fields for lists of items (team members, stats, testimonials, feature items). Repeaters always live in the Content tab. Minimum and maximum row counts are set to match the design constraints — if the Figma design shows 3–6 stat items, set <code>min: 3, max: 6</code>.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">4.7</span><h3>Conditional Logic</h3></div>
+      <p>ACF's native conditional logic is used to show and hide fields based on other field values. A field should never be visible in the sidebar if it has no effect given the current state of other fields. Example: overlay opacity and overlay color fields are hidden when the media type is set to None.</p>
+    </div>
+  </section>
+
+  <!-- Section 5 -->
+  <section class="section" id="s5">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2>Block Variants, Variations, and Separate Blocks</h2>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">5.1</span><h3>The Decision Framework</h3></div>
+      <p>Use the following test when a Figma design shows multiple versions of a block:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Difference Type</th><th>Solution</th></tr></thead>
+          <tbody>
+            <tr><td>Same fields, different visual presentation only</td><td>ACF Block Style (<code>is-style-*</code>) + CSS</td></tr>
+            <tr><td>Same fields, different default values or layout mode</td><td>Block Variation (inserter preset with default attributes)</td></tr>
+            <tr><td>1–2 additional conditional fields</td><td>Attribute toggle + ACF conditional logic</td></tr>
+            <tr><td>Fundamentally different field schema</td><td>Separate ACF block</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">5.2</span><h3>The Structural Test for Separate Blocks</h3></div>
+      <p>Ask: if an editor opens this block expecting to work on Variant A but finds themselves in Variant B's configuration, would 4 or more fields be irrelevant or confusing to them? If yes, it is a separate block. If the conditional logic can cleanly hide those fields, it stays as one block with toggles.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">5.3</span><h3>Block Variations Are Inserter Presets</h3></div>
+      <p><code>registerBlockVariation</code> is used to give editors distinct named entries in the block inserter for common configurations of a block. Each variation pre-populates attributes to match a Figma variant. Editors see "Hero – Full Bleed" and "Hero – Compact" as separate inserter items, but they are the same underlying block. After insertion, a Layout control in the Advanced tab lets them switch if needed.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">5.4</span><h3>Block Styles Are for Visual-Only Differences</h3></div>
+      <p><code>registerBlockStyle</code> is used when the only difference between two design variants is CSS — dark vs. light overlay, outlined vs. filled CTA, etc. Block styles add a modifier class (<code>is-style-dark</code>) to the block wrapper. PHP templates and ACF field schemas are identical between styles. All style differences are handled in CSS.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">5.5</span><h3>Block Patterns for Page-Level Presets</h3></div>
+      <p>For each major Figma-designed page template or section composition, register a Block Pattern that pre-populates a full set of blocks with placeholder content. This is what editors start from when building a new page, not a blank inserter. Patterns are registered in the theme and organized by category (e.g., <code>yourtheme/heroes</code>, <code>yourtheme/cta-sections</code>).</p>
+    </div>
+  </section>
+
+  <!-- Section 6 -->
+  <section class="section" id="s6">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2>Spacing and Padding Rules</h2>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">6.1</span><h3>Default Block Padding</h3></div>
+      <p>Every block's default padding is defined in the block's stylesheet and requires no field values to be set. The block looks correct at these defaults out of the box.</p>
+      <div class="spacing-grid">
+        <div class="spacing-card"><span class="spacing-val">64px</span><span class="spacing-label">Top</span></div>
+        <div class="spacing-card"><span class="spacing-val">64px</span><span class="spacing-label">Bottom</span></div>
+        <div class="spacing-card"><span class="spacing-val">64px</span><span class="spacing-label">Left / Right</span></div>
+      </div>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">6.2</span><h3>Padding Override Fields</h3></div>
+      <p>Every block includes padding override fields in the <strong>Style tab</strong>. These use ACF's <code>Number</code> or <code>Text</code> fields and cover top, bottom, left, and right padding independently. These fields are blank by default. When set, they override the CSS default via an inline style or a scoped CSS custom property on the block wrapper.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">6.3</span><h3>Margin Override Fields</h3></div>
+      <p>Every block includes optional top and bottom margin override fields in the <strong>Style tab</strong>. Default block margin is 0. Margins between sections are controlled by the block below using its top padding, not by the block above using its bottom margin, except where a specific design requires otherwise.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">6.4</span><h3>Responsive Spacing</h3></div>
+      <p>Padding and margin override fields accept a single value applied across all breakpoints unless responsive control is explicitly required by the design. When responsive control is needed, three separate sub-fields are used (Desktop, Tablet, Mobile) rather than a single responsive value field.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">6.5</span><h3>No Hardcoded Spacing in Templates</h3></div>
+      <p>PHP block templates never contain hardcoded <code>padding</code> or <code>margin</code> inline styles. All spacing comes from CSS defaults or from ACF field values applied to a <code>style</code> attribute on the wrapper element via PHP.</p>
+    </div>
+  </section>
+
+  <!-- Section 7 -->
+  <section class="section" id="s7">
+    <div class="section-header">
+      <span class="section-num">07</span>
+      <h2>Design Token and Theme Integration</h2>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">7.1</span><h3>Figma Tokens Live in theme.json</h3></div>
+      <p>All design tokens from Figma (colors, spacing scale, type scale, radii) are defined as custom properties in <code>theme.json</code> under <code>settings.custom</code>. They are referenced in block stylesheets as <code>var(--wp--custom--*)</code>. No raw hex values, pixel values, or font names are hardcoded in block CSS.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">7.2</span><h3>Block Supports for Global Styles Integration</h3></div>
+      <p>All ACF blocks declare appropriate <code>supports</code> in their registration to integrate with WordPress Global Styles where applicable. At minimum:</p>
+      <pre><code><span class="st">'supports'</span> =&gt; <span class="kw">array</span>(
+    <span class="st">'anchor'</span>  =&gt; <span class="kw">true</span>,
+    <span class="st">'align'</span>   =&gt; <span class="kw">array</span>(<span class="st">'wide'</span>, <span class="st">'full'</span>),
+    <span class="st">'spacing'</span> =&gt; <span class="kw">array</span>(
+        <span class="st">'padding'</span> =&gt; <span class="kw">true</span>,
+        <span class="st">'margin'</span>  =&gt; <span class="kw">true</span>,
+    ),
+),</code></pre>
+      <p style="margin-top:12px;">Color and typography supports are added on a per-block basis where the design system permits editor-level overrides. They are not added globally to all blocks by default.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">7.3</span><h3>CSS Architecture Per Block</h3></div>
+      <p>Each ACF block has its own scoped stylesheet (<code>blocks/block-name/block-name.css</code>). Styles do not bleed between blocks. The block wrapper always carries a unique class (<code>wp-block-yourtheme-block-name</code>) and all CSS is scoped to that class.</p>
+    </div>
+  </section>
+
+  <!-- Section 8 -->
+  <section class="section" id="s8">
+    <div class="section-header">
+      <span class="section-num">08</span>
+      <h2>PHP Template Rules</h2>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">8.1</span><h3>One Template Per Block</h3></div>
+      <p>Each block has one PHP render template. There are no shared templates between blocks. If two blocks share significant markup, that markup is extracted to a partial (<code>blocks/partials/</code>) and included in each block's template separately.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">8.2</span><h3>All Field Output Is Escaped</h3></div>
+      <p>Every ACF field value output in a PHP template is escaped appropriately:</p>
+      <ul style="margin-top:10px;">
+        <li><code>esc_html()</code> for plain text</li>
+        <li><code>wp_kses_post()</code> for WYSIWYG output</li>
+        <li><code>esc_url()</code> for URLs</li>
+        <li><code>esc_attr()</code> for HTML attribute values</li>
+      </ul>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">8.3</span><h3>Conditional Rendering</h3></div>
+      <p>PHP templates use conditional checks before rendering any element that depends on a field having a value. Empty fields never produce empty HTML wrappers in the rendered output.</p>
+      <pre><code><span class="op">&lt;?php</span> <span class="kw">if</span> ( <span class="fn">get_field</span>(<span class="st">'subheading'</span>) ) : <span class="op">?&gt;</span>
+    &lt;p class=<span class="st">"hero__subheading"</span>&gt;<span class="op">&lt;?php</span> <span class="fn">the_field</span>(<span class="st">'subheading'</span>); <span class="op">?&gt;</span>&lt;/p&gt;
+<span class="op">&lt;?php</span> <span class="kw">endif</span>; <span class="op">?&gt;</span></code></pre>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">8.4</span><h3>Block Wrapper Uses get_block_wrapper_attributes()</h3></div>
+      <p>The outermost wrapper element in every PHP template uses <code>get_block_wrapper_attributes()</code> to ensure WordPress-generated classes (including <code>is-style-*</code>, alignment classes, and anchor IDs) are applied correctly.</p>
+      <pre><code>&lt;section <span class="op">&lt;?php</span> <span class="kw">echo</span> <span class="fn">get_block_wrapper_attributes</span>([<span class="st">'class'</span> =&gt; <span class="st">'hero'</span>]); <span class="op">?&gt;</span>&gt;</code></pre>
+    </div>
+  </section>
+
+  <!-- Section 9 -->
+  <section class="section" id="s9">
+    <div class="section-header">
+      <span class="section-num">09</span>
+      <h2>Block File Structure</h2>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">9.0</span><h3>Standard Directory Layout</h3></div>
+      <p>Every ACF block lives in <code>blocks/block-name/</code> and contains the following files. Field groups are registered in code (<code>fields.php</code>), not saved to the database via the ACF UI. Field groups are never managed through the WordPress admin and exported to PHP — they are authored in PHP from the start.</p>
+      <div class="file-tree">
+        <div><span class="dir">blocks/</span></div>
+        <div>&nbsp;&nbsp;<span class="dir">hero/</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">hero.php</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Render template</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">hero.css</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Block-scoped styles</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">hero.js</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Block-specific JS (if needed)</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">block.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Block metadata (title, icon, keywords, category)</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">fields.php</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># ACF field group registration for this block</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 10 -->
+  <section class="section" id="s10">
+    <div class="section-header">
+      <span class="section-num">10</span>
+      <h2>Naming and Registration Conventions</h2>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">10.1</span><h3>Block Namespace</h3></div>
+      <p>All custom blocks are registered under the theme or project namespace: <code>yourtheme/block-name</code>. The namespace is consistent across all projects unless a plugin requires its own namespace.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">10.2</span><h3>Block Names Are Kebab-Case</h3></div>
+      <p>Block names use kebab-case: <code>hero</code>, <code>cta-band</code>, <code>team-grid</code>, <code>location-hero</code>. No underscores, no camelCase.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">10.3</span><h3>ACF Field Keys Are Prefixed and Consistent</h3></div>
+      <p>ACF field keys follow the pattern <code>field_{blockname}_{fieldname}</code>: e.g., <code>field_hero_heading</code>, <code>field_hero_media_type</code>. This prevents key collisions across blocks and makes field references readable.</p>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">10.4</span><h3>Block Categories</h3></div>
+      <p>All custom blocks are registered under a custom block category (<code>yourtheme-blocks</code>) so they appear grouped and separate from core blocks in the inserter.</p>
+    </div>
+  </section>
+
+  <!-- Section 11 -->
+  <section class="section" id="s11">
+    <div class="section-header">
+      <span class="section-num">11</span>
+      <h2>What Never Goes in a Custom Block</h2>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">11.0</span><h3>Hard Prohibitions</h3></div>
+      <ul class="no-list">
+        <li><strong>Free-form layout assembly.</strong> If an editor needs to freely arrange elements, that is a GenerateBlocks or core blocks use case, not a custom block.</li>
+        <li><strong>Functionality that belongs in a plugin.</strong> Forms, ecommerce, maps, and similar features are handled by dedicated plugins. ACF blocks can wrap or display plugin output, but they do not replicate plugin functionality.</li>
+        <li><strong>Hardcoded content.</strong> No custom block contains hardcoded copy, images, or data that should be editable. If it is visible on the page, it comes from a field.</li>
+        <li><strong>Page layout/template logic.</strong> Custom blocks are section-level components. Full page layout (header, footer, sidebar, column structure) is handled at the theme template level, not in blocks.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Section 12 -->
+  <section class="section" id="s12">
+    <div class="section-header">
+      <span class="section-num">12</span>
+      <h2>Summary Decision Tree</h2>
+    </div>
+
+    <div class="rule">
+      <div class="rule-title"><span class="rule-id">12.0</span><h3>When Starting a New Block from a Figma Design</h3></div>
+      <ol class="decision-tree">
+        <li>
+          <div class="content">
+            <strong>Is it a structured, designed component?</strong><br>
+            <span style="color:var(--text-muted);font-size:13.5px;">→ ACF block.</span>
+          </div>
+        </li>
+        <li>
+          <div class="content">
+            <strong>Does it query a CPT or external data?</strong><br>
+            <span style="color:var(--text-muted);font-size:13.5px;">→ ACF block with dynamic query logic in the template.</span>
+          </div>
+        </li>
+        <li>
+          <div class="content">
+            <strong>Does the Figma file show multiple variants?</strong>
+            <ul>
+              <li>Only visual/CSS differences → One block + Block Styles.</li>
+              <li>Same fields, different defaults → One block + Block Variations as inserter presets.</li>
+              <li>1–2 conditional extra fields → One block + ACF conditional logic.</li>
+              <li>Different field schema → Separate block.</li>
+            </ul>
+          </div>
+        </li>
+        <li>
+          <div class="content">
+            <strong>Does it need free-form rich text composition?</strong><br>
+            <span style="color:var(--text-muted);font-size:13.5px;">→ Core blocks inside an ACF InnerBlocks field or a dedicated core block area.</span>
+          </div>
+        </li>
+        <li>
+          <div class="content">
+            <strong>Is it a one-off layout not worth formalizing?</strong><br>
+            <span style="color:var(--text-muted);font-size:13.5px;">→ GenerateBlocks. Document why.</span>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  // Active nav link on scroll
+  const sections = document.querySelectorAll('.section');
+  const links = document.querySelectorAll('.nav-link');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.nav-link[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
